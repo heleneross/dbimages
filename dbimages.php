@@ -2,13 +2,24 @@
    $mtime = microtime(); 
    $mtime = explode(" ",$mtime); 
    $mtime = $mtime[1] + $mtime[0]; 
-   $starttime = $mtime; 
+   $starttime = $mtime;
+    
+//	use thumbnails?
+$thumbs = true;
+// check thumb.php is available - it should be in images folder with this file
+$thumbs = (file_exists('thumb.php')?$thumbs:false);
+//thumbnail sizing   
+$maxw = 100;
+$maxh = 100;
 ;?> 
 <!DOCTYPE html>
 <head><title>Find</title>
 <style>
 table{border: 1px solid black; border-collapse:collapse;}
 th, td {border: 1px solid silver;padding:5px;}
+li div {display:inline-block;} 
+li div img{padding-right:5px;vertical-align: middle;}
+img.table {margin:auto;display:block;}
 </style>
 </head>
 <body>
@@ -194,7 +205,11 @@ foreach ($db_wheres as $key=>$value)
         
         if($rows > 0)
         {
-          $found[$file] = '<tr><td><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></td><td>'.str_replace($prefix,'',$key).'</td><td>'.$rows.'</td></tr>';
+          if($thumbs){
+          	$found[$file] = '<tr><td><img src="thumb.php?file='.$dir.$file.'&maxw='.$maxw.'&maxh='.$maxh.'"  class="table" /></td><td><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></td><td>'.str_replace($prefix,'',$key).'</td><td>'.$rows.'</td></tr>';
+       		}else{
+       		$found[$file] = '<tr><td><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></td><td>'.str_replace($prefix,'',$key).'</td><td>'.$rows.'</td></tr>';
+			}
         }
 
         unset($params);
@@ -207,7 +222,11 @@ echo '</tbody></table><h2>Images not found in db</h2><ul>';
 $notfound = array_diff_key($files,$found);
 foreach($notfound as $file=>$value)
 {
-  echo '<li><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></li>';
+	if ($thumbs){
+  		echo '<li><div><img src="thumb.php?file='.$dir.$file.'&maxw='.$maxw.'&maxh='.$maxh.'" /><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></div></li>';
+	}else{
+		echo '<li><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></li>';
+	}
 }
 echo '</ul><h2>Folders</h2>';
 
@@ -217,12 +236,12 @@ echo '<li><a href="dbimages.php?dir='.$dir.$folder.'">'.$folder.'</a></li>';
 }
 echo '</ul>';
                                             
-echo '</body></html>';
- 
    $mtime = microtime(); 
    $mtime = explode(" ",$mtime); 
    $mtime = $mtime[1] + $mtime[0]; 
    $endtime = $mtime; 
    $totaltime = ($endtime - $starttime); 
    echo "This page was created in ".round($totaltime,2)." seconds"; 
-
+   echo '<p>&nbsp;</p>';
+echo '</body></html>';
+   
