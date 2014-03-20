@@ -3,7 +3,9 @@
    $mtime = explode(" ",$mtime); 
    $mtime = $mtime[1] + $mtime[0]; 
    $starttime = $mtime;
-
+$scriptname = $_SERVER['SCRIPT_NAME']; //eg. /files/dbfiles.php
+$basename = basename($_SERVER['PHP_SELF']); //eg. dbfiles.php
+$dirname = trim(dirname($_SERVER['PHP_SELF']),"\/"); //eg. files
 ?> 
 <!DOCTYPE html>
 <head><title>Find</title>
@@ -16,12 +18,12 @@ img.table {margin:auto;display:block;}
 </style>
 </head>
 <body>
-<a href="<?php echo $_SERVER['SCRIPT_NAME']; ?>">[Home]</a>
+<a href="<?php echo $scriptname; ?>">[Home]</a>
 <h1>Files</h1>
 
 <?php
 set_time_limit(0);
-
+ 
 $thumbs = true;
 function f_images($a)
 {
@@ -40,12 +42,12 @@ require ('../configuration.php');
 $config = new JConfig();
 
 $dir = $_GET["dir"]?$_GET["dir"]:$currdir;
-
+echo $dir;
 $ds = DIRECTORY_SEPARATOR;
 
 $foundfiles = scandir($dir);
 
-echo '<p><strong>'.($dir == $currdir?'files':'files/'.$dir).'</strong></p>';
+echo '<p><strong>'.($dir == $currdir?$dirname:$dirname.'/'.$dir).'</strong></p>';
 // now set $dir to something useful for links
 $dir = ($dir == $currdir?'':$dir . '/');
 
@@ -197,7 +199,7 @@ foreach ($db_wheres as $key=>$value)
     $num = substr_count($sql,'?');
     foreach($files as $file)
     {
-        $params = array_fill(0,$num,'%'.$dir.$file.'%');
+        $params = array_fill(0,$num,'%'.$dirname.'/'.$dir.$file.'%');
         $st->execute($params);
         $rows = $st->fetchColumn();
         //$rows = $st->fetchAll(PDO::FETCH_ASSOC);
@@ -233,7 +235,7 @@ echo '</ul><p>Number of files not found in db: '.count($notfound).'</p><h2>Folde
 
 echo '<ul>';
 foreach ($folders as $folder){
-echo '<li><a href="dbimages.php?dir='.$dir.$folder.'">'.$folder.'</a></li>';
+echo '<li><a href="'.$scriptname.'?dir='.$dir.$folder.'">'.$folder.'</a></li>';
 }
 echo '</ul>';
                                             
@@ -243,7 +245,7 @@ echo '</ul>';
    $endtime = $mtime; 
    $totaltime = ($endtime - $starttime); 
    echo "<p>This page was created in ".round($totaltime,2)." seconds</p>"; 
-   echo '<a href="'. $_SERVER['SCRIPT_NAME'].'">[Home]</a>'; 
+   echo '<a href="'. $scriptname.'">[Home]</a>'; 
    echo '<p>&nbsp;</p>';
 echo '</body></html>';
 
