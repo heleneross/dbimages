@@ -264,6 +264,3 @@ $icons = array(
 
 return (array_key_exists($ext,$icons)?$icons[$ext]:$icons['file']);
 }
-
-
-   
