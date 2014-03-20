@@ -5,14 +5,14 @@
    $starttime = $mtime;
     
 //	use thumbnails?
-$thumbs = true;
+$thumbs = true; //**
 
 //thumbnail sizing   
-$maxw = 100;
-$maxh = 100;
+$maxw = 100; //**
+$maxh = 100; //**
 
 // don't create images if number of images greater than this limit (0 = unlimited)
-$imglimit = 0;
+$imglimit = 0; //**
 ;?> 
 <!DOCTYPE html>
 <head><title>Find</title>
@@ -35,7 +35,7 @@ set_time_limit(0);
 function f_images($a)
 {
   $a = strtolower($a);
-  return preg_match('#(jpg|gif|png|jpeg)$#',$a);
+  return preg_match('#(jpg|gif|png|jpeg)$#',$a); //**
 }
 
 function f_folders ($a)
@@ -66,6 +66,7 @@ $folders = array_filter($folders,'f_folders');
 
 $prefix = $config->dbprefix;
 // reduce the number of tables to search
+//**
 $db_excluded = array(
 $prefix . 'ak_profiles',
 $prefix . 'ak_stats',
@@ -169,7 +170,9 @@ $prefix . 'xmap_items'
 );
 
 // images you do not want to check for whatever reason
+//**
 $excluded_images = array('fake.gif');
+
 $files = array_diff($files,$excluded_images);
 
 if ($imglimit > 0 && count($files) > $imglimit)
