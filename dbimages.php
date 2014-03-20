@@ -11,6 +11,8 @@ $thumbs = (file_exists('thumb.php')?$thumbs:false);
 //thumbnail sizing   
 $maxw = 100;
 $maxh = 100;
+// don't create images if number of images greater than this limit (0 = unlimited)
+$imglimit = 0;
 ;?> 
 <!DOCTYPE html>
 <head><title>Find</title>
@@ -18,11 +20,12 @@ $maxh = 100;
 table{border: 1px solid black; border-collapse:collapse;}
 th, td {border: 1px solid silver;padding:5px;}
 li div {display:inline-block;} 
-li div img{padding-right:5px;vertical-align: middle;}
+li div img{padding:5px;vertical-align: middle;}
 img.table {margin:auto;display:block;}
 </style>
 </head>
 <body>
+<a href="<?php echo $_SERVER['SCRIPT_NAME']; ?>">[Home]</a>
 <h1>Images</h1>
 
 <?php
@@ -31,7 +34,8 @@ set_time_limit(0);
 
 function f_images($a)
 {
-  return preg_match('#(jpg|JPG|gif|GIF|png|png|jpeg|JPEG)$#',$a);
+  $a = strtolower($a);
+  return preg_match('#(jpg|gif|png|jpeg)$#',$a);
 }
 
 function f_folders ($a)
@@ -168,6 +172,11 @@ $prefix . 'xmap_items'
 $excluded_images = array('fake.gif');
 $files = array_diff($files,$excluded_images);
 
+if ($imglimit > 0 && count($files) > $imglimit)
+{
+	$thumbs = false;
+}
+
 $db = new PDO('mysql:host='.$config->host.';dbname='.$config->db.';charset=utf8', $config->user, '');
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $db->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
@@ -218,7 +227,7 @@ foreach ($db_wheres as $key=>$value)
 $files = array_flip($files);
 echo '<table><tbody>';
 echo implode($found);
-echo '</tbody></table><h2>Images not found in db</h2><ul>';
+echo '</tbody></table><p>Number of images in db: '.count($found).'</p><h2>Images not found in db</h2><ul>';
 $notfound = array_diff_key($files,$found);
 foreach($notfound as $file=>$value)
 {
@@ -228,7 +237,7 @@ foreach($notfound as $file=>$value)
 		echo '<li><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></li>';
 	}
 }
-echo '</ul><h2>Folders</h2>';
+echo '</ul><p>Number of images not found in db: '.count($notfound).'</p><h2>Folders</h2>';
 
 echo '<ul>';
 foreach ($folders as $folder){
@@ -241,7 +250,8 @@ echo '</ul>';
    $mtime = $mtime[1] + $mtime[0]; 
    $endtime = $mtime; 
    $totaltime = ($endtime - $starttime); 
-   echo "This page was created in ".round($totaltime,2)." seconds"; 
+   echo "<p>This page was created in ".round($totaltime,2)." seconds</p>"; 
+   echo '<a href="'. $_SERVER['SCRIPT_NAME'].'">[Home]</a>'; 
    echo '<p>&nbsp;</p>';
 echo '</body></html>';
    
