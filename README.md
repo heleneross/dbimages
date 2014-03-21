@@ -65,4 +65,4 @@ All of these are marked with `//**`
 
 ## TODO ##
 
-
+Retain trransparency when resizing images
