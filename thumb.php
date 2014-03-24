@@ -3,17 +3,17 @@
 // Marc von Brockdorff 
 $sImagePath = $_GET["file"];
  
-$iThumbnailWidth = (int)$_GET['width'];
-$iThumbnailHeight = (int)$_GET['height'];
-$iMaxWidth = (int)$_GET["maxw"];
-$iMaxHeight = (int)$_GET["maxh"];
+$iThumbnailWidth = isset($_GET['width'])? (int)$_GET['width'] : null;
+$iThumbnailHeight = isset($_GET['height']) ? (int)$_GET['height'] : null;
+$iMaxWidth = isset($_GET["maxw"]) ? (int)$_GET["maxw"] : null;
+$iMaxHeight = isset($_GET["maxh"]) ? (int)$_GET["maxh"] : null;
  
 if ($iMaxWidth && $iMaxHeight) $sType = 'scale';
 else if ($iThumbnailWidth && $iThumbnailHeight) $sType = 'exact';
  
 $img = NULL;
- 
-$sExtension = strtolower(end(explode('.', $sImagePath)));
+$end = explode('.', $sImagePath);  
+$sExtension = strtolower(end($end));
 if ($sExtension == 'jpg' || $sExtension == 'jpeg') {
  
     $img = @imagecreatefromjpeg($sImagePath)
@@ -40,19 +40,16 @@ if ($img) {
  
         // Get scale ratio
  
-        $fScale = min($iMaxWidth/$iOrigWidth,
-              $iMaxHeight/$iOrigHeight);
+        $fScale = min($iMaxWidth/$iOrigWidth, $iMaxHeight/$iOrigHeight);
  
         if ($fScale < 1) {
  
             $iNewWidth = floor($fScale*$iOrigWidth);
             $iNewHeight = floor($fScale*$iOrigHeight);
  
-            $tmpimg = imagecreatetruecolor($iNewWidth,
-                               $iNewHeight);
+            $tmpimg = imagecreatetruecolor($iNewWidth, $iNewHeight);
  
-            imagecopyresampled($tmpimg, $img, 0, 0, 0, 0,
-            $iNewWidth, $iNewHeight, $iOrigWidth, $iOrigHeight);
+            imagecopyresampled($tmpimg, $img, 0, 0, 0, 0, $iNewWidth, $iNewHeight, $iOrigWidth, $iOrigHeight);
  
             imagedestroy($img);
             $img = $tmpimg;
@@ -60,33 +57,27 @@ if ($img) {
  
     } else if ($sType == "exact") {
  
-        $fScale = max($iThumbnailWidth/$iOrigWidth,
-              $iThumbnailHeight/$iOrigHeight);
+        $fScale = max($iThumbnailWidth/$iOrigWidth, $iThumbnailHeight/$iOrigHeight);
  
         if ($fScale < 1) {
  
             $iNewWidth = floor($fScale*$iOrigWidth);
             $iNewHeight = floor($fScale*$iOrigHeight);
  
-            $tmpimg = imagecreatetruecolor($iNewWidth,
-                            $iNewHeight);
-            $tmp2img = imagecreatetruecolor($iThumbnailWidth,
-                            $iThumbnailHeight);
+            $tmpimg = imagecreatetruecolor($iNewWidth, $iNewHeight);
+            $tmp2img = imagecreatetruecolor($iThumbnailWidth, $iThumbnailHeight);
  
-            imagecopyresampled($tmpimg, $img, 0, 0, 0, 0,
-            $iNewWidth, $iNewHeight, $iOrigWidth, $iOrigHeight);
+            imagecopyresampled($tmpimg, $img, 0, 0, 0, 0, $iNewWidth, $iNewHeight, $iOrigWidth, $iOrigHeight);
  
             if ($iNewWidth == $iThumbnailWidth) {
  
-                $yAxis = ($iNewHeight/2)-
-                    ($iThumbnailHeight/2);
+                $yAxis = ($iNewHeight/2)- ($iThumbnailHeight/2);
                 $xAxis = 0;
  
             } else if ($iNewHeight == $iThumbnailHeight)  {
  
                 $yAxis = 0;
-                $xAxis = ($iNewWidth/2)-
-                    ($iThumbnailWidth/2);
+                $xAxis = ($iNewWidth/2)- ($iThumbnailWidth/2);
  
             } 
  
@@ -103,10 +94,24 @@ if ($img) {
         }    
  
     }
- 
-    header("Content-type: image/jpeg");
-    imagejpeg($img);
- 
+    switch ($sExtension)
+		{
+			case 'png' :
+				{
+					imagesavealpha($img, true);
+					imagepng($img);
+          //header("Content-type: image/png");
+          imagepng($img);
+				}
+			case 'gif' :
+			{
+        //header("Content-type: image/gif");
+				imagegif($img);
+			}	
+			default :
+			{
+				//header("Content-type: image/jpeg");
+        imagejpeg($img);
+			}
+		}
 }
- 
-?>
