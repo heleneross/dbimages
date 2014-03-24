@@ -42,7 +42,7 @@ require ('../configuration.php');
 $config = new JConfig();
 
 $dir = $_GET["dir"]?$_GET["dir"]:$currdir;
-echo $dir;
+
 $ds = DIRECTORY_SEPARATOR;
 
 $foundfiles = scandir($dir);
