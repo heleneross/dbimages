@@ -63,7 +63,7 @@ function f_images($a)
 
 function f_folders($a)
 {
-	$dir = $_GET["dir"] ? $_GET["dir"] . '/' : '';
+	$dir = isset($_GET["dir"]) ? $_GET["dir"] . '/' : '';
 	return is_dir($dir . $a);
 }
 
@@ -71,7 +71,7 @@ $currdir = getcwd();
 require('../configuration.php');
 $config = new JConfig();
 
-$dir = $_GET["dir"] ? $_GET["dir"] : $currdir;
+$dir = isset($_GET["dir"]) ? $_GET["dir"] : $currdir;
 
 $ds = DIRECTORY_SEPARATOR;
 
@@ -243,7 +243,7 @@ foreach ($db_wheres as $key => $value)
 			if ($thumbs)
 			{
 				//$found[$file] = '<tr><td><img src="thumb.php?file='.$dir.$file.'&maxw='.$maxw.'&maxh='.$maxh.'"  class="table" /></td><td><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></td><td>'.str_replace($prefix,'',$key).'</td><td>'.$rows.'</td></tr>';
-				$found[$file] = '<tr><td><img src="data:image/jpeg;base64,' . getimage($dir . $file, $maxw, $maxh) . '" class="table" /></td><td><a href="' . $dir . $file . '" target="_blank">' . $file . '</a></td><td>' . str_replace($prefix, '', $key) . '</td><td>' . $rows . '</td></tr>';
+				$found[$file] = '<tr><td><img src="' . getimage($dir . $file, $maxw, $maxh) . '" class="table" /></td><td><a href="' . $dir . $file . '" target="_blank">' . $file . '</a></td><td>' . str_replace($prefix, '', $key) . '</td><td>' . $rows . '</td></tr>';
 			}
 			else
 			{
@@ -264,7 +264,7 @@ foreach ($notfound as $file => $value)
 	if ($thumbs)
 	{
 		//echo '<li><div><img src="thumb.php?file='.$dir.$file.'&maxw='.$maxw.'&maxh='.$maxh.'" /><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></div></li>';
-		echo '<li><div><img src="data:image/jpeg;base64,' . getimage($dir . $file, $maxw, $maxh) . '" /><a href="' . $dir . $file . '" target="_blank">' . $file . '</a></div></li>';
+		echo '<li><div><img src="' . getimage($dir . $file, $maxw, $maxh) . '" /><a href="' . $dir . $file . '" target="_blank">' . $file . '</a></div></li>';
 	}
 	else
 	{
@@ -318,8 +318,8 @@ function getimage($sImagePath, $iMaxWidth = null, $iMaxHeight = null)
 // Marc von Brockdorff 
 
 	$img = null;
-
-	$sExtension = strtolower(end(explode('.', $sImagePath)));
+  $end = explode('.', $sImagePath);
+	$sExtension = strtolower(end($end));
 	if ($sExtension == 'jpg' || $sExtension == 'jpeg')
 	{
 
@@ -350,8 +350,7 @@ function getimage($sImagePath, $iMaxWidth = null, $iMaxHeight = null)
 
 		// Get scale ratio
 
-		$fScale = min($iMaxWidth / $iOrigWidth,
-			$iMaxHeight / $iOrigHeight);
+		$fScale = min($iMaxWidth / $iOrigWidth,	$iMaxHeight / $iOrigHeight);
 
 		if ($fScale < 1)
 		{
@@ -359,21 +358,62 @@ function getimage($sImagePath, $iMaxWidth = null, $iMaxHeight = null)
 			$iNewWidth = floor($fScale * $iOrigWidth);
 			$iNewHeight = floor($fScale * $iOrigHeight);
 
-			$tmpimg = imagecreatetruecolor($iNewWidth,
-				$iNewHeight);
-
-			imagecopyresampled($tmpimg, $img, 0, 0, 0, 0,
-				$iNewWidth, $iNewHeight, $iOrigWidth, $iOrigHeight);
+			$tmpimg = imagecreatetruecolor($iNewWidth, $iNewHeight);
+			
+			if($sExtension == 'png' || $sExtension == 'gif')
+			{
+				$current_transparent=imagecolortransparent($img);
+				if($current_transparent!=-1)
+				{
+					$transparent_color=imagecolorsforindex($img,$current_transparent);
+					$current_transparent=imagecolorallocate($tmpimg,$transparent_color['red'],$transparent_color['green'],$transparent_color['blue']);
+					imagefill($tmpimg,0,0,$current_transparent);
+					imagecolortransparent($tmpimg,$current_transparent);
+				}
+				elseif ($sExtension == 'png')
+				{
+					imagealphablending($tmpimg, false);
+					$trans_colour = imagecolorallocatealpha($tmpimg, 0, 0, 0, 127);
+					imagefill($tmpimg, 0, 0, $trans_colour);
+				}	
+			}
+			
+			imagecopyresampled($tmpimg, $img, 0, 0, 0, 0, $iNewWidth, $iNewHeight, $iOrigWidth, $iOrigHeight);
 
 			imagedestroy($img);
 			$img = $tmpimg;
 		}
 
-		ob_start();
-		//header("Content-type: image/jpeg");
-		imagejpeg($img);
-		$outimage = ob_get_clean();
-		return base64_encode($outimage);
+		
+		switch ($sExtension)
+		{
+			case 'png' :
+				{
+					ob_start();
+					imagesavealpha($img, true);
+					imagepng($img);
+					$outimage = ob_get_clean();
+					imagedestroy($img);
+					return 'data:image/png;base64,'.base64_encode($outimage);
+				}
+			case 'gif' :
+			{
+				ob_start();
+				imagegif($img);
+				$outimage = ob_get_clean();
+				imagedestroy($img);
+				return 'data:image/gif;base64,'.base64_encode($outimage);
+			}	
+			default :
+			{
+				ob_start();
+				imagejpeg($img);
+				$outimage = ob_get_clean();
+				imagedestroy($img);
+				return 'data:image/jpeg;base64,'.base64_encode($outimage);
+			}
+		}
+		
 	}
 	return null;
 }
