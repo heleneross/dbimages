@@ -12,6 +12,7 @@ $dirname = trim(dirname($_SERVER['PHP_SELF']),"\/"); //eg. files
 <style>
 table{border: 1px solid black; border-collapse:collapse;}
 th, td {border: 1px solid silver;padding:5px;}
+ul {list-style-type:none;}
 li div {display:inline-block;} 
 li div img{vertical-align: middle;float:left;padding:3px;}
 img.table {margin:auto;display:block;}
@@ -224,14 +225,15 @@ echo '</tbody></table><p>Number of files in db: '.count($found).'</p><h2>Files n
 $notfound = array_diff_key($files,$found);
 foreach($notfound as $file=>$value)
 {
-	if ($thumbs){
+	$illegals = (preg_match('#(\'|\s|\&)#',$file))? '*' : '';
+  if ($thumbs){
   		$ext = strtolower(end(explode('.',$file)));
-      echo '<li><div><img alt="'.$ext.'" src="'.geticon($ext).'"  class="table" /><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></div></li>';
+      echo '<li><div><img alt="'.$ext.'" src="'.geticon($ext).'"  class="table" /><a href="'.$dir.$file.'" target="_blank">'.$file.'</a> '.$illegals.'</div></li>';
 	}else{
-		echo '<li><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></li>';
+		echo '<li><a href="'.$dir.$file.'" target="_blank">'.$file.'</a> '.$illegals.'</li>';
 	}
 }
-echo '</ul><p>Number of files not found in db: '.count($notfound).'</p><h2>Folders</h2>';
+echo '</ul><p>* illegal characters in filename, please check manually</p><p>Number of files not found in db: '.count($notfound).'</p><h2>Folders</h2>';
 
 echo '<ul>';
 foreach ($folders as $folder){
