@@ -40,7 +40,7 @@ function f_images($a)
 
 function f_folders ($a)
 {
-  $dir = $_GET["dir"]?$_GET["dir"].'/':'';
+  $dir = isset($_GET["dir"])?$_GET["dir"].'/':'';
   return is_dir($dir.$a);
 }
 
@@ -48,7 +48,7 @@ $currdir = getcwd ();
 require ('../configuration.php');
 $config = new JConfig();
 
-$dir = $_GET["dir"]?$_GET["dir"]:$currdir;
+$dir = isset($_GET["dir"])?$_GET["dir"]:$currdir;
 
 $ds = DIRECTORY_SEPARATOR;
 
