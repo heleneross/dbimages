@@ -233,7 +233,7 @@ foreach($notfound as $file=>$value)
 		echo '<li><a href="'.$dir.$file.'" target="_blank">'.$file.'</a> '.$illegals.'</li>';
 	}
 }
-echo '</ul><p>* illegal characters in filename, please check manually</p><p>Number of files not found in db: '.count($notfound).'</p><h2>Folders</h2>';
+echo '</ul>' . ($illegals ? '<p>* illegal characters or spaces in filename, please check manually in db</p>' : '').'<p>Number of files not found in db: '.count($notfound).'</p><h2>Folders</h2>';
 
 echo '<ul>';
 foreach ($folders as $folder){
