@@ -3,9 +3,9 @@
    $mtime = explode(" ",$mtime); 
    $mtime = $mtime[1] + $mtime[0]; 
    $starttime = $mtime;
-$scriptname = $_SERVER['SCRIPT_NAME']; //eg. /files/dbfiles.php
-$basename = basename($_SERVER['PHP_SELF']); //eg. dbfiles.php
-$dirname = trim(dirname($_SERVER['PHP_SELF']),"\/"); //eg. files
+$scriptpathname = $_SERVER['SCRIPT_NAME']; //eg. /files/dbfiles.php
+$scriptname = basename($_SERVER['PHP_SELF']); //eg. dbfiles.php
+$dirname = basename(__DIR__); //eg. files
 ?> 
 <!DOCTYPE html>
 <head><title>Find</title>
