@@ -136,6 +136,14 @@ $prefix . 'wf_profiles',
 $prefix . 'xmap_items'
 );
 
+// don't report on these files - each array member is the content of $match[0]
+// you can work out what this is by enabling the return $url[0] line in the filelink function
+//**
+$excluded = array(
+'src="templates/bfgnet2/images/www.gif"',
+'src="http://bfgnet.cloudaccess.net/components/com_breezingforms/images/tooltip.png"',
+'src="components/com_breezingforms/images/tooltip.png"'
+);
 
 $db = new PDO('mysql:host='.$config->host.';dbname='.$config->db.';charset=utf8', $config->user, '');
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -180,10 +188,13 @@ foreach ($db_wheres as $key=>$value)
             $state = (pubstate($row['published']) == 'unknown')? pubstate($row['state']): pubstate($row['published']);
             foreach ($matches as $match)
             {
-              $count++;
-              echo '<tr><td>'.$key.'</td><td>'.$k.'</td><td>'.$state.'</td><td>'.$row['id'].'</td>';
-              echo '<td>'.htmlentities($row['title']).'</td><td>'.filelink($match, $dirname).'</td>'; 
-              echo '</tr>';
+              if(!in_array($match[0],$excluded))
+              {
+                $count++;
+                echo '<tr><td>'.$key.'</td><td>'.$k.'</td><td>'.$state.'</td><td>'.current($row).'</td>';
+                echo '<td>'.htmlentities($row['title']).'</td><td>'.filelink($match, $dirname).'</td>'; 
+                echo '</tr>';
+              }
             }
           } 
       }
@@ -208,7 +219,8 @@ function filelink($url,$dirname)
      }
      else
      {
-        //return $url[2].$dirname.'/'.$url[3].'<br>'.$url[0];
+        // enable the next line if you want to find out the exclude text for the $exclude array 
+        // return $url[0];
         return '<span class="red">'.$url[2].$dirname.'/'.$url[3].'</span>';
      }
   }
