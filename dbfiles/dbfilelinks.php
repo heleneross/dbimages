@@ -181,7 +181,7 @@ foreach ($db_wheres as $key=>$value)
             {
               $count++;
               echo '<tr><td>'.$key.'</td><td>'.$k.'</td><td>'.$state.'</td><td>'.$row['id'].'</td>';
-              echo '<td>'.htmlentities($row['title']).'</td><td>'.filelink($match[2],$match[3],$dirname).'</td>'; 
+              echo '<td>'.htmlentities($row['title']).'</td><td>'.filelink($match, $dirname).'</td>'; 
               echo '</tr>';
             }
           } 
@@ -192,22 +192,23 @@ foreach ($db_wheres as $key=>$value)
 echo '</tbody></table>';
 echo 'Links to files found: ' . $count;
 
-function filelink($pre,$url,$dirname)
+function filelink($url,$dirname)
 {
-  if(file_exists($url))
+  if(file_exists($url[3]))
   {
-    return '<a href="'.$url.'" target="_blank">'.$url.'</a>';
+    return '<a href="'.$url[3].'" target="_blank">'.$url[3].'</a>';
   }
   else
   {
-     // try removing %20 and other bad chars from filename
-     if(file_exists(urldecode($url)))
+     // try removing %20 and other bad chars from filename in link
+     if(file_exists(urldecode($url[3])))
      {
-        return '<a href="'.$url.'" target="_blank">'.$url.'</a>&nbsp;*';
+        return '<a href="'.$url[3].'" target="_blank">'.$url[3].'</a>&nbsp;*';
      }
      else
      {
-        return $pre.$dirname.'/'.$url;
+        //return $url[2].$dirname.'/'.$url[3].'<br>'.$url[0];
+        return $url[2].$dirname.'/'.$url[3];
      }
   }
 }
