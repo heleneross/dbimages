@@ -17,6 +17,7 @@ ul {list-style-type:none;}
 li div {display:inline-block;} 
 li div img{vertical-align: middle;float:left;padding:3px;}
 img.table {margin:auto;display:block;}
+.red {color:red;}
 </style>
 </head>
 <body>
@@ -203,12 +204,12 @@ function filelink($url,$dirname)
      // try removing %20 and other bad chars from filename in link
      if(file_exists(urldecode($url[3])))
      {
-        return '<a href="'.$url[3].'" target="_blank">'.$url[3].'</a>&nbsp;*';
+        return '<a href="'.$url[3].'" target="_blank">'.$url[3].'</a><span class="red">&nbsp;*</span>';
      }
      else
      {
         //return $url[2].$dirname.'/'.$url[3].'<br>'.$url[0];
-        return $url[2].$dirname.'/'.$url[3];
+        return '<span class="red">'.$url[2].$dirname.'/'.$url[3].'</span>';
      }
   }
 }
