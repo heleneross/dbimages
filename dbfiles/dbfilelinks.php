@@ -52,6 +52,7 @@ $prefix . 'cookieconfirm_storage',
 $prefix . 'core_log_searches',
 $prefix . 'f2c_fieldtype',
 $prefix . 'f2c_translation',
+$prefix . 'facileforms_forms',
 $prefix . 'facileforms_compmenus',
 $prefix . 'facileforms_config',
 $prefix . 'facileforms_integrator_criteria_fixed',
@@ -142,10 +143,16 @@ $prefix . 'xmap_items'
 $excluded = array(
 'src="templates/bfgnet2/images/www.gif"',
 'src="http://bfgnet.cloudaccess.net/components/com_breezingforms/images/tooltip.png"',
-'src="components/com_breezingforms/images/tooltip.png"'
+'src="components/com_breezingforms/images/tooltip.png"',
+'"image":"http:\/\/bfgnet.cloudaccess.net\/components\/com_breezingforms\/images\/tooltip.png"'
 );
 
-$db = new PDO('mysql:host='.$config->host.';dbname='.$config->db.';charset=utf8', $config->user, '');
+try {
+  $db = new PDO('mysql:host=' . $config->host . ';dbname=' . $config->db . ';charset=utf8', $config->user, $config->password);
+}
+catch (PDOException $e){
+  echo 'Connection failed: ' . $e->getMessage();
+}
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $db->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
 $stmt = $db->query('SHOW TABLES');
@@ -161,29 +168,51 @@ foreach($db_tables as $table)
    $cols = $stmt->fetchAll(PDO::FETCH_COLUMN);
    if(!empty($cols))
    {
-      $db_wheres[$table] = ' WHERE (`' . implode($cols,'` LIKE ? OR `') . '` LIKE ?)';
+      $db_wheres[$table] = '`' . implode($cols,'` LIKE ? OR `') . '` LIKE ?';
    }
 }
 
 $count;
+
 echo '<table><thead>';
 echo '<th>Table name</th><th>Column</th><th>State</th><th>ID</th><th>Title</th><th>Link</th>';
 echo '</thead><tbody>';
 foreach ($db_wheres as $key=>$value)
 {
-    $sql = 'SELECT * FROM '.$key. $value;
+    $sql = 'SELECT * FROM '.$key. ' WHERE ('. $value . ' OR ' .$value . ')';
     $st = $db->prepare($sql);
-    $num = substr_count($sql,'?');
+    $num = substr_count($value,'?');
     $params = array_fill(0,$num,'%'.$dirname.'/%');
+    $jsondir = str_replace('/','\\\\/',$dirname);
+    $sqlparamsjson = array_fill(0, $num, '%' . $jsondir . '%');
+    $params = array_merge($params,$sqlparamsjson);
+    
     $st->execute($params);
     $rows = $st->fetchAll(PDO::FETCH_ASSOC);
     foreach ($rows as $row)
     {
       foreach ($row as $k=>$v)
       {
-          $regex = '#(href|src)="(.*?)'. $dirname . '\/(.*?)\"#';
+          $regex = '#(href|src)="(.*?)'. $dirname . '\/(.*?)\"#'; 
           $found = preg_match_all($regex,$v,$matches,PREG_SET_ORDER);
+          
           if ($found)
+          {
+            $state = (pubstate($row['published']) == 'unknown')? pubstate($row['state']): pubstate($row['published']);
+            foreach ($matches as $match)
+            {
+              if(!in_array($match[0],$excluded))
+              {
+                $count++;
+                echo '<tr><td>'.$key.'</td><td>'.$k.'</td><td>'.$state.'</td><td>'.current($row).'</td>';
+                echo '<td>'.htmlentities($row['title']).'</td><td>'.filelink($match, $dirname).'</td>'; 
+                echo '</tr>';
+              }
+            }
+          }
+          $regexjson = '#("image_intro":|"image_fulltext":|"image":)"(.*?)' . str_replace('/','\\\/',$dirname) . '\\\/(.*?)"#';
+          $foundjson = preg_match_all($regexjson,$v,$matches,PREG_SET_ORDER);
+          if ($foundjson)
           {
             $state = (pubstate($row['published']) == 'unknown')? pubstate($row['state']): pubstate($row['published']);
             foreach ($matches as $match)
@@ -206,6 +235,7 @@ echo 'Links to files found: ' . $count;
 
 function filelink($url,$dirname)
 {
+  $url[3] = str_replace('\/','/',$url[3]);
   if(file_exists($url[3]))
   {
     return '<a href="'.$url[3].'" target="_blank">'.$url[3].'</a>';
@@ -220,8 +250,8 @@ function filelink($url,$dirname)
      else
      {
         // enable the next line if you want to find out the exclude text for the $exclude array 
-        // return $url[0];
-        return '<span class="red">'.$url[2].$dirname.'/'.$url[3].'</span>';
+        // return $url[0] . '(notfound)';
+        return '<span class="red">'.$url[2].$dirname.'/'.$url[3].'</span> (notfound)';
      }
   }
 }
