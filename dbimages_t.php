@@ -16,8 +16,11 @@ $imglimit = 0; //**
 
 // look for galleries
 $galleries = true; //**
-// $galtype can only be 'sigplus', 'jw_sig', 'verysimpleimagegallery' or 'ppgallery' at the moment
+// $galtype only be 'sigplus', 'jw_sig', 'verysimpleimagegallery' or 'ppgallery' at the moment
 $galtype = 'sigplus'; //**
+// you can try your luck with other galleries by setting $galtype above and the following strings
+$rootgalleryimagefolder = 'images/';
+$tag = 'gallery';
 
 // search json encoded columns
 $json = true; //**
@@ -352,18 +355,18 @@ if ($galleries)
         }
       default :
         {
-          $galdir = preg_replace('#^images/#','',$dir);
-          $tag = 'gallery';
+          // if your gallery is not supported then you can try setting these strings here
+          $galdir = preg_replace('#^'.$rootgalleryimagefolder.'#','',$dir);
         }
   }
 
    
-  $sql = "SELECT COUNT(*) FROM `" . $prefix . "content` WHERE (`introtext` like ? or `fulltext` like ?)";
+  $sql = "SELECT COUNT(*) FROM `" . $prefix . "content` WHERE (`introtext` like ? or `fulltext` like ? or `introtext` like ? or `fulltext` like ?)";
 	$st = $db->prepare($sql);
 	foreach ($folders as $folder)
 	{
-    $params = array("%{".$tag."}" . $galdir . $folder . "{/".$tag."}%", "%{".$tag."}" . $galdir . $folder . "{/".$tag."}%");
-    //$params = array("%{".$tag."}" . $galdir . $folder . "%", "%{".$tag."}" . $galdir . $folder . "%");
+    //$params = array("%{".$tag."}" . $galdir . $folder . "{/".$tag."}%", "%{".$tag."}" . $galdir . $folder . "{/".$tag."}%");
+    $params = array("%{".$tag."}" . $galdir . $folder . "{/".$tag."}%", "%{".$tag."}" . $galdir . $folder . "{/".$tag."}%", "%{".$tag."}" . $galdir . $folder . "|%", "%{".$tag."}" . $galdir . $folder . "|%");
 		$st->execute($params);
 		$rows = $st->fetchColumn();
 		if ($rows)
@@ -375,6 +378,7 @@ if ($galleries)
 			echo '<li><a href="' . $basename . '?dir=' . $dir . $folder . '">' . $folder . '</a></li>';
 		}
 	}
+  
 }
 else
 {
