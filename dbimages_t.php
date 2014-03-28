@@ -16,7 +16,23 @@ $imglimit = 0; //**
 
 // look for galleries
 $galleries = true; //**
-;
+// $galtype can only be 'sigplus', 'jw_sig', 'verysimpleimagegallery' or 'ppgallery' at the moment
+$galtype = 'sigplus'; //**
+
+// search json encoded columns
+$json = true; //**
+
+// tmp dir NB created in script directory
+$tmpdir = 'dbimagestmp'; //**
+
+if (isset($tmpdir) && !file_exists($tmpdir))
+{
+    mkdir($tmpdir, 0777, true);
+}
+if (isset($tmpdir) && !file_exists($tmpdir . '/' . $maxw . 'x' . $maxh))
+{
+    mkdir($tmpdir . '/' . $maxw . 'x' . $maxh, 0777, true);
+}
 ?>
 	<!DOCTYPE html>
 	<head><title>Find</title>
@@ -68,7 +84,7 @@ function f_folders($a)
 }
 
 $currdir = getcwd();
-require('../configuration.php');
+require($_SERVER['DOCUMENT_ROOT'].'/configuration.php');
 $config = new JConfig();
 
 $dir = isset($_GET["dir"]) ? $_GET["dir"] : $currdir;
@@ -84,7 +100,11 @@ $dir = ($dir == $currdir ? '' : $dir . '/');
 // filter out unwanted files
 $files = array_filter($foundfiles, 'f_images');
 
+// filter out unwanted folders
+$excluded_folders = array($tmpdir); //**
+
 $folders = preg_grep('#\.#', $foundfiles, PREG_GREP_INVERT);
+$folders = array_diff($folders,$excluded_folders);
 $folders = array_filter($folders, 'f_folders');
 
 $prefix = $config->dbprefix;
@@ -202,8 +222,12 @@ if ($imglimit > 0 && count($files) > $imglimit)
 {
 	$thumbs = false;
 }
-
-$db = new PDO('mysql:host=' . $config->host . ';dbname=' . $config->db . ';charset=utf8', $config->user, '');
+try {
+  $db = new PDO('mysql:host=' . $config->host . ';dbname=' . $config->db . ';charset=utf8', $config->user, $config->password);
+}
+catch (PDOException $e){
+  echo 'Connection failed: ' . $e->getMessage();
+}
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $db->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
 $stmt = $db->query('SHOW TABLES');
@@ -219,7 +243,7 @@ foreach ($db_tables as $table)
 	$cols = $stmt->fetchAll(PDO::FETCH_COLUMN);
 	if (!empty($cols))
 	{
-		$db_wheres[$table] = ' WHERE (`' . implode($cols, '` LIKE ? OR `') . '` LIKE ?)';
+    $db_wheres[$table] = '`' . implode($cols, '` LIKE ? OR `') . '` LIKE ?';
 	}
 }
 $notfound = array();
@@ -227,14 +251,31 @@ $found = array();
 
 foreach ($db_wheres as $key => $value)
 {
-	$sql = 'SELECT COUNT(*) FROM ' . $key . $value;
+    if ($json)
+    {
+      $sql = 'SELECT COUNT(*) FROM ' . $key . ' WHERE (' . $value . ' OR ' .$value . ')';
+    }
+    else
+    {
+      $sql = 'SELECT COUNT(*) FROM ' . $key . ' WHERE (' . $value . ')';
+    }
 	//$sql = 'SELECT * FROM '.$key. $value;
 	$st = $db->prepare($sql);
-	$num = substr_count($sql, '?');
+	$num = substr_count($value, '?');
 	foreach ($files as $file)
 	{
-		$params = array_fill(0, $num, '%' . $dir . $file . '%');
-		$st->execute($params);
+    if($json)
+    {
+       $sqlparams = array_fill(0, $num, '%' . $dir . $file . '%');
+       $jsondir = str_replace('/','\\\\/',$dir);
+       $sqlparamsjson = array_fill(0, $num, '%' . $jsondir . $file . '%');
+       $sqlparams = array_merge($sqlparams,$sqlparamsjson);
+    }
+    else
+    {
+      $sqlparams = array_fill(0, $num, '%' . $dir . $file . '%');
+    }
+		$st->execute($sqlparams);
 		$rows = $st->fetchColumn();
 		//$rows = $st->fetchAll(PDO::FETCH_ASSOC);
 
@@ -242,8 +283,7 @@ foreach ($db_wheres as $key => $value)
 		{
 			if ($thumbs)
 			{
-				//$found[$file] = '<tr><td><img src="thumb.php?file='.$dir.$file.'&maxw='.$maxw.'&maxh='.$maxh.'"  class="table" /></td><td><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></td><td>'.str_replace($prefix,'',$key).'</td><td>'.$rows.'</td></tr>';
-				$found[$file] = '<tr><td><img src="' . getimage($dir . $file, $maxw, $maxh) . '" class="table" /></td><td><a href="' . $dir . $file . '" target="_blank">' . $file . '</a></td><td>' . str_replace($prefix, '', $key) . '</td><td>' . $rows . '</td></tr>';
+				$found[$file] = '<tr><td><img src="' . getimage($dir . $file, $maxw, $maxh , $tmpdir) . '" class="table" /></td><td><a href="' . $dir . $file . '" target="_blank">' . $file . '</a></td><td>' . str_replace($prefix, '', $key) . '</td><td>' . $rows . '</td></tr>';
 			}
 			else
 			{
@@ -251,7 +291,7 @@ foreach ($db_wheres as $key => $value)
 			}
 		}
 
-		unset($params);
+		unset($sqlparams);
 	}
 }
 $files = array_flip($files);
@@ -263,8 +303,7 @@ foreach ($notfound as $file => $value)
 {
 	if ($thumbs)
 	{
-		//echo '<li><div><img src="thumb.php?file='.$dir.$file.'&maxw='.$maxw.'&maxh='.$maxh.'" /><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></div></li>';
-		echo '<li><div><img src="' . getimage($dir . $file, $maxw, $maxh) . '" /><a href="' . $dir . $file . '" target="_blank">' . $file . '</a></div></li>';
+		echo '<li><div><img src="' . getimage($dir . $file, $maxw, $maxh, $tmpdir) . '" /><a href="' . $dir . $file . '" target="_blank">' . $file . '</a></div></li>';
 	}
 	else
 	{
@@ -276,16 +315,60 @@ echo '</ul><p>Number of images not found in db: ' . count($notfound) . '</p><h2>
 echo '<ul>';
 if ($galleries)
 {
-	$sql = "SELECT COUNT(*) FROM `" . $prefix . "content` WHERE (`introtext` like ? or `fulltext` like ?)";
+          $sql = "SELECT `params` FROM `" . $prefix . "extensions` WHERE `type` = 'plugin' AND `element` = '".$galtype."' LIMIT 1";
+          $stmt = $db->query($sql);
+          $gal = $stmt->fetch();
+          $gal =  json_decode($gal['params']);
+  switch ($galtype)
+  {
+      case 'sigplus' : 
+        {
+          $galdir = preg_replace('#^'.$gal->base_folder . '\/#','',$dir);
+          $tag = $gal->activationtag;
+          break;
+        }
+      case 'jw_sig' :
+        {
+          $galdir = preg_replace('#^'.$gal->galleries_rootfolder . '\/#','',$dir);
+          $tag = 'gallery';
+          break;
+        }
+      case 'ppgallery' :
+        {
+          $tag = $gal->plgstring;
+          // this gets the images dir from media manager
+          $sql = "SELECT `params` FROM `" . $prefix . "extensions` WHERE `type` = 'component' AND `element` = 'com_media' LIMIT 1";
+          $stmt = $db->query($sql);
+          $gal = $stmt->fetch();
+          $gal =  json_decode($gal['params']);
+          $galdir = preg_replace('#^'.$gal->image_path . '\/#','',$dir);
+          break;
+        }
+      case 'verysimpleimagegallery' :
+        {
+          $galdir = preg_replace('#^'.trim($gal->imagepath,'\/') . '\/#','',$dir);
+          $tag = 'vsig';
+          break;
+        }
+      default :
+        {
+          $galdir = preg_replace('#^images/#','',$dir);
+          $tag = 'gallery';
+        }
+  }
+
+   
+  $sql = "SELECT COUNT(*) FROM `" . $prefix . "content` WHERE (`introtext` like ? or `fulltext` like ?)";
 	$st = $db->prepare($sql);
 	foreach ($folders as $folder)
 	{
-		$params = array("%{gallery}" . $dir . $folder . "{/gallery}%", "%{gallery}" . $dir . $folder . "{/gallery}%");
+    $params = array("%{".$tag."}" . $galdir . $folder . "{/".$tag."}%", "%{".$tag."}" . $galdir . $folder . "{/".$tag."}%");
+    //$params = array("%{".$tag."}" . $galdir . $folder . "%", "%{".$tag."}" . $galdir . $folder . "%");
 		$st->execute($params);
 		$rows = $st->fetchColumn();
 		if ($rows)
 		{
-			echo '<li><a href="' . $basename . '?dir=' . $dir . $folder . '">' . $folder . '</a> (Gallery)</li>';
+      echo '<li><a href="' . $basename . '?dir=' . $dir . $folder . '">' . $folder . '</a> (Gallery)</li>';
 		}
 		else
 		{
@@ -312,12 +395,23 @@ echo '<a href="' . $_SERVER['SCRIPT_NAME'] . '">[Home]</a>';
 echo '<p>&nbsp;</p>';
 echo '</body></html>';
 
-function getimage($sImagePath, $iMaxWidth = null, $iMaxHeight = null)
+function getimage($sImagePath, $iMaxWidth = null, $iMaxHeight = null, $tmpdir = null)
 {
 // http://www.webgeekly.com/tutorials/php/how-to-create-an-image-thumbnail-on-the-fly-using-php/
 // Marc von Brockdorff 
 
 	$img = null;
+  $root = rtrim(dirname($_SERVER['PHP_SELF']),'\/') . '/'; 
+  if (isset($tmpdir))
+  {
+      $tmpdir .= '/' . $iMaxWidth . 'x' . $iMaxHeight;
+      $filename = str_replace('/','_',$sImagePath);
+      if(file_exists($tmpdir.'/'.$filename))
+      {
+          return $root . $tmpdir . '/'.$filename;
+      }
+  }
+
   $end = explode('.', $sImagePath);
 	$sExtension = strtolower(end($end));
 	if ($sExtension == 'jpg' || $sExtension == 'jpeg')
@@ -394,7 +488,15 @@ function getimage($sImagePath, $iMaxWidth = null, $iMaxHeight = null)
 					imagepng($img);
 					$outimage = ob_get_clean();
 					imagedestroy($img);
-					return 'data:image/png;base64,'.base64_encode($outimage);
+          if(isset($tmpdir))
+          {
+            file_put_contents($tmpdir . '/' .$filename,$outimage);
+            return $root . $tmpdir . '/'.$filename;
+          }
+          else
+          {
+            return 'data:image/png;base64,'.base64_encode($outimage);
+          }
 				}
 			case 'gif' :
 			{
@@ -402,7 +504,15 @@ function getimage($sImagePath, $iMaxWidth = null, $iMaxHeight = null)
 				imagegif($img);
 				$outimage = ob_get_clean();
 				imagedestroy($img);
-				return 'data:image/gif;base64,'.base64_encode($outimage);
+        if(isset($tmpdir))
+        {
+          file_put_contents($tmpdir . '/' . $filename,$outimage);
+          return $root . $tmpdir . '/'.$filename; 
+        }
+        else
+        {
+          return 'data:image/gif;base64,'.base64_encode($outimage);
+        }
 			}	
 			default :
 			{
@@ -410,7 +520,15 @@ function getimage($sImagePath, $iMaxWidth = null, $iMaxHeight = null)
 				imagejpeg($img);
 				$outimage = ob_get_clean();
 				imagedestroy($img);
-				return 'data:image/jpeg;base64,'.base64_encode($outimage);
+        if(isset($tmpdir))
+        {
+          file_put_contents($tmpdir . '/' . $filename,$outimage);
+          return $root . $tmpdir . '/'.$filename;
+        }
+        else
+        {   
+          return 'data:image/jpeg;base64,'.base64_encode($outimage);
+        }
 			}
 		}
 		
