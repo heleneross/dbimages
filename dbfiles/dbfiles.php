@@ -5,17 +5,18 @@
    $starttime = $mtime;
 $scriptname = $_SERVER['SCRIPT_NAME']; //eg. /files/dbfiles.php
 $basename = basename($_SERVER['PHP_SELF']); //eg. dbfiles.php
-$dirname = trim(dirname($_SERVER['PHP_SELF']),"\/"); //eg. files
+$dirname = $dirname = basename(__DIR__); //eg. files
 ?> 
 <!DOCTYPE html>
 <head><title>Find</title>
 <style>
 table{border: 1px solid black; border-collapse:collapse;}
 th, td {border: 1px solid silver;padding:5px;}
-ul {list-style-type:none;}
+ul.thumb {list-style-type:none;}
 li div {display:inline-block;} 
 li div img{vertical-align: middle;float:left;padding:3px;}
 img.table {margin:auto;display:block;}
+img.folder {vertical-align: text-bottom;padding-bottom:2px;}
 </style>
 </head>
 <body>
@@ -200,19 +201,29 @@ foreach ($db_wheres as $key=>$value)
     $num = substr_count($sql,'?');
     foreach($files as $file)
     {
+        $urlencoded = false;
         $params = array_fill(0,$num,'%'.$dirname.'/'.$dir.$file.'%');
         $st->execute($params);
         $rows = $st->fetchColumn();
         //$rows = $st->fetchAll(PDO::FETCH_ASSOC);
-        
+        if($rows == 0 && rawurlencode($file) != $file)
+        {
+          $params = array_fill(0,$num,'%'.$dirname.'/'.$dir.rawurlencode($file).'%');
+          $st->execute($params);
+          $rows = $st->fetchColumn();
+          $urlencoded = true;
+        }
         if($rows > 0)
         {
-          if($thumbs){
-            $ext = strtolower(end(explode('.',$file)));
-          	$found[$file] = '<tr><td><img alt="'.$ext.'" src="'.geticon($ext).'"  class="table" /></td><td><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></td><td>'.str_replace($prefix,'',$key).'</td><td>'.$rows.'</td></tr>';
-       		}else{
-       		$found[$file] = '<tr><td><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></td><td>'.str_replace($prefix,'',$key).'</td><td>'.$rows.'</td></tr>';
-			}
+          if($thumbs)
+          {
+              $ext = strtolower(end(explode('.',$file)));
+          	  $found[$file] = '<tr><td><img alt="'.$ext.'" src="'.geticon($ext).'"  class="table" /></td><td><a href="'.$dir.$file.'" target="_blank">'.$file.'</a>'.($urlencoded ? ' *' : '').'</td><td>'.str_replace($prefix,'',$key).'</td><td>'.$rows.'</td></tr>';
+       		}
+           else
+           {
+       		   $found[$file] = '<tr><td><a href="'.$dir.$file.'" target="_blank">'.$file.'</a></td><td>'.str_replace($prefix,'',$key).'</td><td>'.$rows.'</td></tr>';
+			     }
         }
 
         unset($params);
@@ -221,23 +232,32 @@ foreach ($db_wheres as $key=>$value)
 $files = array_flip($files);
 echo '<table><tbody>';
 echo implode($found);
-echo '</tbody></table><p>Number of files in db: '.count($found).'</p><h2>Files not found in db</h2><ul>';
+echo '</tbody></table><p>Number of files in db: '.count($found).'</p><h2>Files not found in db</h2>';
+echo $thumbs ? '<ul class="thumb">' : '<ul>';
 $notfound = array_diff_key($files,$found);
 foreach($notfound as $file=>$value)
 {
-	$illegals = (preg_match('#(\'|\s|\&)#',$file))? '*' : '';
+	$illegals = (preg_match('#(\'|\s|\&)#',$file))? ' *' : '';
   if ($thumbs){
   		$ext = strtolower(end(explode('.',$file)));
-      echo '<li><div><img alt="'.$ext.'" src="'.geticon($ext).'"  class="table" /><a href="'.$dir.$file.'" target="_blank">'.$file.'</a> '.$illegals.'</div></li>';
+      echo '<li><div><img alt="'.$ext.'" src="'.geticon($ext).'"  class="table" /><a href="'.$dir.$file.'" target="_blank">'.$file.'</a>'.$illegals.'</div></li>';
 	}else{
 		echo '<li><a href="'.$dir.$file.'" target="_blank">'.$file.'</a> '.$illegals.'</li>';
 	}
 }
 echo '</ul>' . ($illegals ? '<p>* illegal characters or spaces in filename, please check manually in db</p>' : '').'<p>Number of files not found in db: '.count($notfound).'</p><h2>Folders</h2>';
 
-echo '<ul>';
-foreach ($folders as $folder){
-echo '<li><a href="'.$scriptname.'?dir='.$dir.$folder.'">'.$folder.'</a></li>';
+echo $thumbs ? '<ul class="thumb">' : '<ul>';
+foreach ($folders as $folder)
+{
+  if($thumbs)
+  {
+    echo '<li><img alt="" src="'.geticon('folder').'" class="folder" /> <a href="'.$scriptname.'?dir='.$dir.$folder.'">'.$folder.'</a></li>';
+  }
+  else
+  {
+    echo '<li><a href="'.$scriptname.'?dir='.$dir.$folder.'">'.$folder.'</a></li>';
+  }
 }
 echo '</ul>';
                                             
@@ -261,7 +281,8 @@ $icons = array(
 'xls' => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAABdFBMVEVveCo0TRk1TRg0Uhc0Uxc0WBU0XhM0XhQ1Xho0YxE0ZBI2YxszaQ8yaCgzbQ40bQ47aB4zcA06bx45cB47cSI6dxk8dx8+ex46fSc/fSFCgCVGhCxHhS1CiTVHiDtNjDZgflxPjjlIkj9Tk0BSl0hVgMhYmEdZgcZYgsVamklemFVdhMRehMRYnlJhiMNiicNbolhfoVNlisJhoFhholRni8FpjMFwm21sjsBujr9lp1tkqGBykL9ykb9nql92k71prWJqrGV0pXB6lbt7lbx+l7ptsGeCmryFnb6HqYWIoMCLosKMosKRp8acsJuXrMmQrtaQvYuhs5+dsc2Two6TxI2WxJGjttGaxpapu9SvwNizw9rA0cDM2svP3c/W4tbS4vrU4/rW5PrX5fvZ5vvf6d/b5/vc6Pve6fvg6vzl7OXh7Pzj7fzl7vzm7/zo8P3q8f3r8v3t8/3v9P3w9v7y9/70+P71+f73+v75+/////81SRob6qKVAAAAAXRSTlMAQObYZgAAAAFiS0dEAIgFHUgAAAAJcEhZcwAACxIAAAsSAdLdfvwAAAAHdElNRQfWBhAMAg4LfkFMAAAA4ElEQVQY02NgYGCIjgwP9vf19nB1ZYCAqMqK8rLSkmLXKpCIm4OVoaayvIyUeJFrFUjErQoKBAuBAkARtxBrlapYLS0/vgJXEGCwywp1lHUylovnyc/Lzcl2ZTCpioswkOCNqeIE8TNdGdSqAnXDDETMU9lzAwIyM5wZFAPFhLgDlQSCWIHyGen2DNIgGzyFORSYswMC0tNsGCRh1jIB5dNSLBhEBfl5uNhYWRirMwICUpJNQU73AZsPkk9O0gcJeOXmBEBAUqIOSMADLp+YoA4ScHdxsbe1NDPS09ZQVQUAym9GeqIKMRMAAAAASUVORK5CYII=",
 'ppt' => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAABhlBMVEUiCQJ2GhR8IBiAJByDKB6ILCGGKy2NMSWQNCeSNS2SNi6RNzCROjOROzSZPCywOS+iRDOkRzSvRzmqTDivUDu8Ty+yUz2dXUi3WEG4WkKwX0S9XkXZWSu/YUjAYUhVgMhZgcZYgsXDZUvDZktdhMRehMRhiMPHa09iicPIa09lisJni8FpjMHBdFvMcVPMcVRsjsBujr9ykL9ykb/Qd1jRd1h2k716lbt7lbzVfFx+l7rVfVyCmrzZgF/ZgWD1e0KFnb7bg2KIoMDuglSLosKMosKRp8boj2rwkVzwklvwkWeXrMmQrtbwlmjwlmvwl2qdsc3wnF7wmXHwm2fwnV3woG+jttHwpWrwpnSpu9SvwNizw9rwtoHwvYvwxZLwyZfwzaH21sbS4vrU4/rW5PrX5fvZ5vvb5/vc6Pve6fvg6vzh7Pzj7fz+59vl7vzm7/zo8P3q8f3r8v3t8/3v9P388+3w9v789O/y9/70+P71+f73+v75+///+/f//Pr//fv///9WDA/EYw43AAAAAXRSTlMAQObYZgAAAAFiS0dEAIgFHUgAAAAJcEhZcwAACxIAAAsSAdLdfvwAAAAHdElNRQfWBhAMAwTysJkTAAAA7UlEQVQY02NgYGCIjgwL8HZzcbCyYoCAqJrqqsqKshKrBpCIo6OdpYm+upKsdLFVA0jEsSFXiodHPLFBuggoABSxzRUqr23kYUuUKLQCAQZrqdK6+kaZYCmRgvy8nGwrBlNOe2d3Uf8ITkEQP8uKQY83PiHWyyuUky/Pxycr05xBUyowLibIz0OKHSifmWHGoJwrFBLu68mfy5Lt45ORbsQg15Cry82lm9vABJRPTzNgkJYUExbg42BlZsz08UlL1QY53RVsPkg+NUUDJOCUl+MDASnJqiABB7h8cpICSMDGwsLM2FBHS01FUV4eAMTGQpNOj1PnAAAAAElFTkSuQmCC",
 'dot' => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAFfKj/FAAAAA3NCSVQICAjb4U/gAAAA0lBMVEX//////////7X//5n//3j//1r//zzm7/z//x7//wDh7Pzc6PvX5fvW5Prc4vTS4vrJ0uK3yPSzw9qvwNiqvvGvvN+tutCjttGdsc2QrtaTq+aXrMmRp8aJpemLpN2MosKAnuaDnNqFnb58l9h7lbxzlNZ2k71sjsBnitV3ipxiicNggc1YgsVVgMhnfrNffcNYftFVe85ddatSc85JdMxVbaRCbsRNaqdEark6abhAZrQ4Ya4qYrcyW7Y6WpghTJoJS7IoPm0GQpsIPIgIL4sBMngq18WvAAAARnRSTlMA////////////////////////////////////////////////////////////////////////////////////////////iZqVbwAAAAlwSFlzAAAK8AAACvABQqw0mAAAACB0RVh0U29mdHdhcmUATWFjcm9tZWRpYSBGaXJld29ya3MgTVi7kSokAAAA2UlEQVR4nC2OaVvCQAyEJ151N63ihS7KVUKLpXijVRHWrvz/v2RanS/JM0nmDXCDR0JXcGLRp4EAkY2BqxQYkxEsg2XAcoJef/LwatSaTi8GHWbGO6ks6zqsluQYOL28HmoGeqPZ80oMcD6fL72IgKrNumbWZh26Gpqhud4y58AwssxxAaRNTUoNwNnO7t7+waER0+aZf3k1midGR+N7qujt1re2YEZ31VP4+qY6cs4q54V+Pil8EAXrHCtv5b2v6zqELTsXNzgFRjpslfxhU5Esy/OiKMvF4hcq4xjn7deUZgAAAABJRU5ErkJggg==",
-'mp3' => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAB+1BMVEUgYmc7PkM6Q09CRk1ER01DSE5FSE1GSU5GSk9GSlBHSlBIS09IS1BQVFtQVVtTVltYXWVYXmVYXmZdXl9gYGBeYWZpaWlmbXhsbnFubm5xcXF3d3d5eXlVgMhZgcZYgsV+f4BdhMRehMSBgoNhiMOCg4ViicNlisJni8FpjMGIiIiJiYlsjsBujr+KjI+JjJN8j6lykL9ykb+MjpB2k72OkZd6lbt7lbyQkpWSkpJ+l7qVlZWWlpaCmryFmriFnb6ampqWm6OZm52IoMCLosKfn5+doKWgoKCeoaefoqajo6ORp8ORp8akp6uoqKiXrMmsrKylr7ydsc2zs7OjttGpu9S2ub2yuse9wMOzw9q4w9W4xNa7xdXCxMjFyMvFytHCy9fHy9DAzODJy8/IzNLEzt7F0N/F0OHI0d7H0uPJ0+HK0+HP2OTL2u7N2u7O2uzP2+3O3O/P3O3Q3O3Q3O7Q3O/R3e/S3u7T3u7Y3ejU3+/V3+7W3+3X3+7W4O/Y4O/Z4e7Z4e/T4/nV4/nd5PHZ5fnZ5vra5/vd6Prc6fze6vvf6vrf6/zg6/zg7Pzh7Pvh7Pzi7fzj7fzj7vzj7v3k7vzl7vvl7vzl7v3m7/zm7/3n8P3o8P3p8f3q8vzr8v3s8/3t8/3t9P7u9P3u9f7v9f7w9f7///8AAABpfOEAAAAAAXRSTlMAQObYZgAAAAFiS0dEAIgFHUgAAAAJcEhZcwAACxIAAAsSAdLdfvwAAAAHdElNRQfWCxgAGAUYv3clAAAA80lEQVQY02NgYGCIDA0J8vdxsbeyYoCAwOS42IiwpYutlkNFgv0cbFylFy20Wg4VCXBKSTSWWjAfKAAR8fJdtsRCbN5cKxAACTh4Ll6gJzJ3zswZkyaCBSzd4lVlhGfPmj5lYj9QwNpd2UNBS1J/5tTJEyb0mjFIa0uLV5pKODZMnTShr6fLBKTFu2XmtMbauu6q8o5OQyB/hYFoTj0PO1cWH29mmw6Qz8CUwJ/NFs5SXBQjVKgBErCr4c5gZOEsLROMblYDCThXc6WxpZe05kcJ5CqBBOwrOFM5CtrzWJmTmuRAttiam5sY6WqqqyjKy8oCAAsLR8hfZq/DAAAAAElFTkSuQmCC"
+'mp3' => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAB+1BMVEUgYmc7PkM6Q09CRk1ER01DSE5FSE1GSU5GSk9GSlBHSlBIS09IS1BQVFtQVVtTVltYXWVYXmVYXmZdXl9gYGBeYWZpaWlmbXhsbnFubm5xcXF3d3d5eXlVgMhZgcZYgsV+f4BdhMRehMSBgoNhiMOCg4ViicNlisJni8FpjMGIiIiJiYlsjsBujr+KjI+JjJN8j6lykL9ykb+MjpB2k72OkZd6lbt7lbyQkpWSkpJ+l7qVlZWWlpaCmryFmriFnb6ampqWm6OZm52IoMCLosKfn5+doKWgoKCeoaefoqajo6ORp8ORp8akp6uoqKiXrMmsrKylr7ydsc2zs7OjttGpu9S2ub2yuse9wMOzw9q4w9W4xNa7xdXCxMjFyMvFytHCy9fHy9DAzODJy8/IzNLEzt7F0N/F0OHI0d7H0uPJ0+HK0+HP2OTL2u7N2u7O2uzP2+3O3O/P3O3Q3O3Q3O7Q3O/R3e/S3u7T3u7Y3ejU3+/V3+7W3+3X3+7W4O/Y4O/Z4e7Z4e/T4/nV4/nd5PHZ5fnZ5vra5/vd6Prc6fze6vvf6vrf6/zg6/zg7Pzh7Pvh7Pzi7fzj7fzj7vzj7v3k7vzl7vvl7vzl7v3m7/zm7/3n8P3o8P3p8f3q8vzr8v3s8/3t8/3t9P7u9P3u9f7v9f7w9f7///8AAABpfOEAAAAAAXRSTlMAQObYZgAAAAFiS0dEAIgFHUgAAAAJcEhZcwAACxIAAAsSAdLdfvwAAAAHdElNRQfWCxgAGAUYv3clAAAA80lEQVQY02NgYGCIDA0J8vdxsbeyYoCAwOS42IiwpYutlkNFgv0cbFylFy20Wg4VCXBKSTSWWjAfKAAR8fJdtsRCbN5cKxAACTh4Ll6gJzJ3zswZkyaCBSzd4lVlhGfPmj5lYj9QwNpd2UNBS1J/5tTJEyb0mjFIa0uLV5pKODZMnTShr6fLBKTFu2XmtMbauu6q8o5OQyB/hYFoTj0PO1cWH29mmw6Qz8CUwJ/NFs5SXBQjVKgBErCr4c5gZOEsLROMblYDCThXc6WxpZe05kcJ5CqBBOwrOFM5CtrzWJmTmuRAttiam5sY6WqqqyjKy8oCAAsLR8hfZq/DAAAAAElFTkSuQmCC",
+'folder' => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABAklEQVR42mNkoBAwAjEXEAcCMTsW+U9AvB6I/+I0gJ2Noe3QJoZKASEgjwkq+h+C795lYPCKZMgC8mZg0fsfbICIIMOcF6cZkrGZ/v8fA0PndIa/7z8BXfAPqgVKv//A8GPeZoYERmE+hjmP1+AwAOgiTjOIP7HZLyjLMJNRmB/ogjMMyYzsUC8wIhQwsgCFWHAHoKAy0AARIYY5r69idwEhIKgBMgAYBq8vkGmALsyAU2QaYAwz4CiZBliADBAAGnCATANsYQbsJtMAJ5ABwGh8uZE8A4R9gAYwMzHkT8hl6Bfgxp5ecIH3Xxj+F05hyIdpUmXAnpnwge9AfJckW7EBAC/gSzisxsnmAAAAAElFTkSuQmCC"
 );
 
 return (array_key_exists($ext,$icons)?$icons[$ext]:$icons['file']);
